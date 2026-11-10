@@ -356,5 +356,6 @@ export const BattleForRokugan:Game<FullState>={
   if(result.error){G.errors[playerID]=result.error;return;}return result.state;
  }}},
  playerView:({G,playerID})=>fullPlayerView(G,playerID),
- endIf:({G})=>G.phase==='finished'?{winners:G.winners}:undefined,
+ // scores — итоговые очки игроков: платформа Zarya строит по ним места для рейтинга.
+ endIf:({G})=>G.phase==='finished'?{winners:G.winners,scores:Object.fromEntries(G.results.map(r=>[r.player,r.total]))}:undefined,
 };
