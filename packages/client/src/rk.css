@@ -1,0 +1,210 @@
+/* Стол «Битвы за Рокуган»: один экран без прокрутки страницы (по образцу Анк-Морпорка).
+   Слева — моя ширма, в центре — поле (колесо — зум, перетаскивание — сдвиг), справа — игроки, действия, журнал. */
+html.rk-fullscreen,html.rk-fullscreen body{height:100%;overflow:hidden}
+html.rk-fullscreen .room-bar{position:fixed;top:0;left:0;right:0;z-index:30;padding:4px 14px;min-height:0}
+html.rk-fullscreen:has(.room-bar) .rk{top:38px}
+.full-table.rk{position:fixed;inset:0;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:clamp(250px,21vw,430px) minmax(0,1fr) clamp(300px,24vw,440px);grid-template-rows:minmax(0,1fr);gap:0;align-items:stretch;background:#0d161b;color:#e8dfcb;overflow:hidden;font-size:14px}
+.rk h3{font:600 12px/1.2 Manrope,system-ui,sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#c9ad73;margin:10px 0 6px}
+.rk .muted{color:#9a9a8c;font-size:12px}
+
+/* --- левая колонка: ширма --- */
+.rk-left{display:flex;flex-direction:column;gap:2px;padding:12px 12px 10px;background:#121d23;border-right:1px solid #33403f;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#5b5641 transparent}
+.rk-round{display:grid;gap:2px;padding-bottom:10px;border-bottom:1px solid #33403f}
+.rk-round .eyebrow{font-size:10px;color:#c9ad73}
+.rk-round b{font:500 20px Literata,Georgia,serif;color:#f4e6c3}
+.rk-round small{color:#b8b3a2;font-size:12px}
+.round-dots{display:flex;gap:6px;margin-top:6px}.round-dots i{width:22px;height:5px;border-radius:3px;background:#34413f}.round-dots i.done{background:#8b6d3a}.round-dots i.now{background:#f0c770;box-shadow:0 0 6px #f0c77099}
+.screen-button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding:10px;border-radius:7px;background:linear-gradient(135deg,color-mix(in srgb,var(--clan) 28%,#1b2a31),#18252b);border:1px solid color-mix(in srgb,var(--clan) 60%,#4d5652)}
+.screen-button:hover,.screen-button:focus-visible{border-color:#e9c77b;box-shadow:0 0 0 1px #e9c77b55}
+.screen-button .clan-emblem{width:40px;height:40px}
+.screen-button b{display:block;font:500 15px Literata,serif;color:#f6e7c4}
+.screen-button small{display:block;font-size:12px;line-height:1.45;color:#d9d0bb;margin-top:3px}
+.rk-block{padding-top:2px}
+.card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.card-grid .component-card{margin:0;max-width:none;position:relative;text-align:left}
+.card-grid .art-zoom,.objective-row .art-zoom{display:block!important;width:100%!important;border-radius:7px!important;transition:transform .15s,box-shadow .15s}
+.card-grid .art-zoom img,.card-grid .territory-card-back{display:block;width:100%;aspect-ratio:.66;object-fit:cover;border-radius:7px;box-shadow:0 4px 12px #0007}
+.card-grid .art-zoom:hover{transform:translateY(-4px)}
+.card-grid .art-zoom.playable{box-shadow:0 0 0 2px #e6c278,0 0 14px #e6c27877!important;cursor:pointer}
+.card-grid .component-card.selected .art-zoom{box-shadow:0 0 0 3px #f8db8e,0 0 18px #f8db8e!important;transform:translateY(-4px)}
+.card-grid .support{grid-column:span 1}
+.card-grid .support .art-zoom img{aspect-ratio:.65}
+.card-count{position:absolute;right:6px;bottom:6px;background:#1b2a31;border:1px solid #c9ad73;color:#f6e7c4;border-radius:10px;padding:1px 7px;font-size:12px}
+.card-grid .card-title-cover{display:grid;place-items:center;aspect-ratio:.66;padding:10px;background:#e5dcc7;color:#30302b;border-radius:7px;font:500 14px Literata,serif;text-align:center}
+.objective-row{display:grid;grid-template-columns:88px 1fr;gap:10px;align-items:start}
+.objective-row .component-card{margin:0;max-width:none}
+.objective-row .art-zoom img{width:100%;border-radius:6px;box-shadow:0 3px 10px #0007}
+.objective-row p{margin:0;font-size:12px;line-height:1.5;color:#d6cfbd}.objective-row p b{display:block;font:500 14px Literata,serif;color:#f4e6c3;margin-bottom:3px}
+.token-row,.rk .discard-tokens{display:flex;flex-wrap:wrap;gap:4px}
+.token-row span{position:relative;display:inline-flex}
+.token-row .token-art,.rk .discard-tokens .token-art{width:34px;height:34px}
+.token-row b{position:absolute;right:-3px;bottom:-3px;font-size:10px;background:#0d161b;border:1px solid #6e6551;border-radius:8px;padding:0 4px;color:#f2e2bd}
+.rk .discard-tokens button{all:unset;cursor:default;border-radius:50%}
+.rk .discard-tokens button.pickable{cursor:pointer;box-shadow:0 0 0 2px #e6c278}
+.rk .discard-tokens span{display:none}
+
+/* --- центр: поле --- */
+.rk-board{position:relative;min-width:0;min-height:0;background:radial-gradient(ellipse at center,#16232a,#0a1115 75%)}
+.rk .art-board{position:absolute;inset:0;border:0;border-radius:0;background:transparent;overflow:hidden}
+.rk .art-board-viewport{position:absolute;inset:0;height:auto;min-height:0;padding:0;overflow:hidden;background:transparent;touch-action:none}
+.rk .board-plane{width:100%;height:100%;border:0;box-shadow:none;cursor:grab;user-select:none}
+.rk .board-plane:active{cursor:grabbing}
+.board-zoom{position:absolute;right:12px;top:12px;z-index:5;display:flex;flex-direction:column;gap:4px}
+.board-zoom button{width:36px;height:36px;min-height:0;padding:0;font-size:18px;line-height:1;background:#1c2a31e6;color:#f1dfb6;border:1px solid #6b6650;border-radius:6px}
+.board-zoom button:hover:not(:disabled){background:#2c3d45}
+.province-hint{position:absolute;left:12px;top:12px;z-index:5;display:grid;gap:2px;max-width:280px;padding:8px 12px;background:#101a1fe8;border:1px solid #6b6650;border-radius:6px;font-size:12px;color:#d8cfba;pointer-events:none}
+.province-hint b{font:500 15px Literata,serif;color:#f6e7c4}
+.region{fill:var(--owner);fill-opacity:0;stroke:transparent;stroke-width:1.6;stroke-linejoin:round;transition:fill-opacity .15s,stroke .15s;cursor:pointer}
+.region.owned{fill-opacity:.2}
+.region:hover{fill-opacity:.32;stroke:#fff3c4;stroke-opacity:.9}
+.region.owned:hover{fill-opacity:.38}
+.region.sel{stroke:#ffe08f;stroke-width:2.6;fill-opacity:.3}
+.region.can{stroke:#9ce9a8;stroke-dasharray:5 4;stroke-width:1.8}
+.region.cannot{fill:#000;fill-opacity:.32}
+.region.dim{fill:#000;fill-opacity:.4}
+.region.mine{fill-opacity:.42;stroke:#ffedac;stroke-width:2.2}
+.region.resolving{stroke:#fff4b5;stroke-width:3;fill-opacity:.35}
+.rk .province-pin .pin-number{display:none}
+.owner-ring{filter:drop-shadow(0 1px 2px #000a)}
+.map-order .stack-tip rect{fill:#101a1fee;stroke:#c9ad73}.map-order .stack-tip text{fill:#f6e7c4;font:600 9px Manrope,system-ui}
+.special-token image{filter:drop-shadow(0 1px 2px #000c)}
+.rk .map-prompt{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:6;margin:0;padding:8px 10px 8px 14px;background:#f0e3bf;color:#2b2a24;border-radius:6px;box-shadow:0 6px 20px #0008;display:flex;gap:10px;align-items:center;font-size:13px}
+.rk .map-prompt button{min-height:30px;padding:4px 10px;font-size:12px}
+.floating-notice{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:7;margin:0}
+.flash{position:absolute;left:50%;top:18%;transform:translateX(-50%);z-index:8;display:flex;gap:14px;align-items:center;max-width:min(560px,90%);padding:14px 18px;background:#141f25f2;border:1px solid #e0b866;border-radius:9px;box-shadow:0 12px 40px #000b;cursor:pointer;animation:flash-in .25s ease-out}
+.flash-tokens{display:flex;gap:6px}.flash .token-art{width:72px;height:72px}
+.flash p{margin:0;font-size:14px;line-height:1.5;color:#f2e6c8}
+@keyframes flash-in{from{opacity:0;transform:translate(-50%,-12px)}}
+.rk-final{position:absolute;inset:24px;z-index:9;overflow:auto;border-radius:8px;box-shadow:0 18px 60px #000c}
+.rk .stack-picker{z-index:7}
+
+/* --- правая колонка --- */
+.rk-right{display:flex;flex-direction:column;min-height:0;background:#121d23;border-left:1px solid #33403f}
+.rk-players{display:flex;flex-direction:column;gap:4px;padding:8px}
+.rk-player{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 9px;border-radius:6px;background:#1a272e;border-left:4px solid var(--clan);cursor:default}
+.rk-player.active{background:#2a3936;box-shadow:inset 0 0 0 1px #c8a96c}
+.rk-player.player-target{cursor:pointer;box-shadow:inset 0 0 0 2px #9ce9a8}
+.rk-player:hover{background:#24343b}
+.rk-player .clan-emblem{width:32px;height:32px}
+.rk-player .who b{display:block;font:500 15px Literata,serif;color:#f4e6c3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-player .who small{display:block;font-size:11px;color:#a9a796;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-player .first-mark{color:#e9c77b}
+.rk-player .stats{display:grid;justify-items:end;gap:1px;font-size:11px;color:#bfb9a6;white-space:nowrap}
+.rk-player .stats b{font-size:14px;color:#f1d58e}
+.player-tip{position:fixed;z-index:50;width:300px;pointer-events:none}
+.clan-brief{background:#f0e9d8;color:#2d302c;border:1px solid #b9a47d;border-top:5px solid var(--clan);border-radius:8px;padding:12px 14px;box-shadow:0 12px 40px #000a}
+.clan-brief header{display:flex;gap:10px;align-items:center}.clan-brief header .clan-emblem{width:42px;height:42px}
+.clan-brief header .eyebrow{display:block;font-size:10px;color:#8a6a35}
+.clan-brief header b{font:500 20px Literata,serif}
+.clan-ability-text{margin:8px 0;font-size:13px;line-height:1.55}
+.unique-token{display:flex;gap:10px;align-items:center;padding:6px 8px;background:#e2d9c4;border-radius:6px}
+.unique-token .token-art{width:46px;height:46px}.unique-token small{display:block;font-size:11px;color:#6e6452}.unique-token b{font-size:14px}
+.tip-cards{margin-top:8px}.tip-cards small{font-size:11px;color:#6e6452}
+.tip-cards>div{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}.tip-cards img{height:78px;border-radius:4px;box-shadow:0 2px 5px #0004}
+.rk .command{flex:1 1 auto;min-height:120px;overflow-y:auto;margin:0 8px;padding:12px 14px;position:static;max-height:none;top:auto;border-radius:7px;scrollbar-width:thin}
+.rk .command>h2{font-size:18px;margin:0 0 6px}
+.rk .command .hand{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+.rk .command .hand button{min-height:74px;padding:6px 3px}
+.rk .command .hand .token-art{width:46px;height:46px}
+.hand-view h3{color:#7b6236}
+.rk .province-detail{margin:10px 0 0;font-size:12px;line-height:1.5;color:#585a51;border-top:1px solid #d0c1a3;padding-top:8px}
+.rk-log{flex:0 0 auto;display:flex;flex-direction:column;max-height:32%;min-height:0;margin:8px 8px 0;border:1px solid #33403f;border-radius:7px;background:#0f181d}
+.rk-log.closed{max-height:none}
+.log-head{all:unset;cursor:pointer;padding:7px 12px;font:600 12px Manrope,system-ui;letter-spacing:1.2px;text-transform:uppercase;color:#c9ad73}
+.log-lines{overflow-y:auto;padding:0 12px 8px;scrollbar-width:thin;scrollbar-color:#5b5641 transparent}
+.rk-log p{margin:0;padding:3px 0;font-size:12px;line-height:1.45;color:#cfc8b6;border-bottom:1px solid #1d2a30}
+.rk-log p.log-battle{color:#f0d79a}.rk-log p.log-round{color:#9fd2b7;font-weight:600}
+.rk-log .log-last{padding:0 12px 8px;border:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px}
+.rk-tools span{font-size:12px;color:#b8b3a2;margin-right:auto}
+.rk-tools button{min-height:32px;padding:5px 10px;font-size:12px;background:#22313a;color:#e5d5b4;border:1px solid #56605a}
+.rk-tools button[aria-pressed=true]{border-color:#e5c17c;color:#f6dd9b}
+
+/* --- превью карты при наведении --- */
+.card-preview{position:fixed;z-index:60;display:flex;gap:12px;align-items:flex-start;pointer-events:none;animation:flash-in .12s ease-out}
+.card-preview img{height:100%;width:auto;border-radius:12px;box-shadow:0 18px 60px #000c}
+.card-preview p{width:220px;margin:0;padding:12px 14px;background:#f2ead7;color:#2f302b;border-radius:8px;font-size:13px;line-height:1.5;box-shadow:0 10px 30px #0009}
+.card-preview p b{display:block;font:500 16px Literata,serif;margin-bottom:4px}
+.art-zoom{cursor:zoom-in}
+
+/* --- ширма и правила --- */
+.screen-dialog,.rules-dialog{width:min(1100px,94vw);max-height:90vh;overflow:auto;background:#f0e9d8;color:#2d302c;border:1px solid #b9a47d;border-radius:10px;padding:26px 30px;box-shadow:0 20px 90px #000c}
+.screen-dialog::backdrop,.rules-dialog::backdrop{background:#070c10d9}
+.dialog-close{position:sticky;top:0;float:right;width:40px;min-height:40px;padding:0;font-size:18px;z-index:2}
+.screen-grid{display:grid;grid-template-columns:1fr 1.25fr 1.15fr;gap:26px}
+.screen-grid h3,.rules-dialog h3{font:500 19px Literata,serif;color:#5c3f1c;margin:4px 0 12px;text-transform:none;letter-spacing:0}
+.screen-dialog .clan-brief{box-shadow:none}
+.token-guide{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.token-guide li{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center;font-size:13px;line-height:1.45}
+.token-guide .token-art{width:44px;height:44px}
+.token-guide b{display:block;font-size:14px}
+.rules-dialog h2{font-size:26px;margin:0 0 10px}
+.rules-dialog section{margin:20px 0;padding-top:4px;border-top:1px solid #d2c3a3}
+.rules-dialog p,.rules-dialog li{font-size:14px;line-height:1.6}
+.rules-dialog .token-guide{grid-template-columns:1fr 1fr;column-gap:24px}
+.rules-nav{display:flex;gap:14px;flex-wrap:wrap;font-size:13px}.rules-nav a,.rules-dialog a{color:#8b342e}
+.clan-table{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.clan-table .clan-brief{box-shadow:none}
+
+/* Узкие экраны: колонки уходят под поле, прокрутка страницы допускается. */
+@media (max-width:980px){
+ html.rk-fullscreen,html.rk-fullscreen body{overflow:auto;height:auto}
+ .full-table.rk{position:static;display:flex;flex-direction:column}
+ .rk-board{height:72vh}
+ .rk-left,.rk-right{border:0;overflow:visible}
+ .rk-log{max-height:300px}
+ .screen-grid{grid-template-columns:1fr}
+ .rules-dialog .token-guide{grid-template-columns:1fr}
+}
+
+/* Панель выбранной карты и способность Скорпиона — внутри панели действий, а не поверх стола. */
+.rk .card-inspector{position:static;inset:auto;width:auto;max-width:none;margin:0 0 10px;padding:10px 12px;background:#e6dcc4;color:#2d302c;border:1px solid #b9a47d;border-left:4px solid #c9963d;border-radius:6px;box-shadow:none;transform:none}
+.rk .card-inspector header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rk .card-inspector header button{width:30px!important;min-height:30px;padding:0;margin:0!important}
+.rk .card-inspector p{font-size:13px;margin:6px 0}
+.rk .spy-view{margin:0 0 10px;padding:10px;background:#e6dcc4;color:#2d302c;border-radius:6px}
+.rk .scorpion-ability{margin-top:10px;padding:8px;border:1px dashed #b9a47d;border-radius:6px;background:transparent}
+.rk .scorpion-ability .ability-card{display:flex!important;align-items:center;gap:10px;width:100%;min-height:0;padding:6px 10px;background:#2b2320;color:#f3e3bf;text-align:left}
+.rk .scorpion-ability .ability-card img{width:34px;height:34px;flex-shrink:0}
+.rk .scorpion-ability .ability-card b{font-size:13px}.rk .scorpion-ability .ability-card small{font-size:11px;opacity:.8;margin-left:auto}
+.rk .scorpion-ability p{font-size:12px;margin:6px 0 0;color:#5a5a50}
+/* Плотнее, чтобы левая колонка помещалась на экране 900px без прокрутки. */
+.objective-row{grid-template-columns:62px 1fr}
+.screen-button small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.token-row .token-art,.rk .discard-tokens .token-art{width:30px;height:30px}
+.rk-round{padding-bottom:8px}.round-dots{margin-top:4px}
+
+/* --- правки по замечаниям: без лишних кругов, фишки меньше, жетоны крупнее и увеличиваются --- */
+.rk .province-pin{pointer-events:none}
+.rk .province-pin.unavailable{opacity:.5}
+.control-piece image{filter:drop-shadow(0 1px 1.5px #000b)}
+.rk .pin-count{font:700 7px Manrope,system-ui;fill:#f6e2a8}
+.token-row{gap:6px}
+.token-row .token-art,.rk .discard-tokens .token-art{width:44px;height:44px}
+.hover-token{position:relative;display:inline-flex}
+.hover-token>b{position:absolute;right:-3px;bottom:-3px;font-size:10px;background:#0d161b;border:1px solid #6e6551;border-radius:8px;padding:0 4px;color:#f2e2bd}
+.token-preview{position:fixed;z-index:70;transform:translate(-50%,calc(-100% - 6px));display:grid;justify-items:center;gap:4px;padding:8px 10px 6px;background:#101a1ff2;border:1px solid #c9ad73;border-radius:8px;box-shadow:0 10px 30px #000b;pointer-events:none;animation:flash-in .1s ease-out}
+.token-preview .token-art{width:120px;height:120px}
+.token-preview span{font-size:13px;font-weight:600;color:#f6e7c4}
+.player-tip{pointer-events:auto;width:330px}
+.tip-cards .art-zoom{display:inline-block!important}
+.tip-cards img{height:96px;border-radius:5px;box-shadow:0 2px 6px #0005}
+.tip-cards .art-zoom:hover img{outline:2px solid #c9963d}
+.special-token{filter:drop-shadow(0 1px 2px #000d)}
+
+/* --- Фирменный шрифт заголовков: Story Brush (RUS BY LYAJKA), им набраны заголовки русских правил.
+   Только капитель, без «·» и «Ё» — браузер берёт эти знаки из следующего шрифта в списке. --- */
+@font-face{font-family:'Story Brush';src:url('/fonts/story-brush-rus.otf') format('opentype');font-display:swap}
+:root{--brush:'Story Brush',Literata,Georgia,serif}
+.rk-round b{font:400 26px/1.1 var(--brush);letter-spacing:.5px}
+.screen-button b{font:400 19px/1.1 var(--brush);letter-spacing:.4px}
+.rk h3{font:400 15px/1.1 var(--brush);letter-spacing:1.2px;text-transform:none}
+.objective-row p b,.province-hint b,.rk-player .who b,.card-preview p b{font-family:var(--brush);font-weight:400;font-size:17px;letter-spacing:.4px}
+.rk-player .who b{font-size:18px}
+.clan-brief header b{font:400 26px/1.1 var(--brush)}
+.rk .command>h2,.screen-grid h3,.rules-dialog h3,.rules-dialog h2,.flash p b,.log-head{font-family:var(--brush);font-weight:400;letter-spacing:.5px}
+.rk .command>h2{font-size:22px}
+.screen-grid h3,.rules-dialog h3{font-size:22px}
+.rules-dialog h2{font-size:32px}
+.log-head{font-size:15px;text-transform:none}
+.rk .primary{font-family:var(--brush);font-weight:400;font-size:17px;letter-spacing:.5px}

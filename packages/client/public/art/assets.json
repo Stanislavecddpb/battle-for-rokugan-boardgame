@@ -852,8 +852,18 @@
       "height": 569,
       "source": "https://github.com/litvinovmitch11/BattleForRokugan/blob/87f7ec42cc164bdfd6295c8afbbaf41d20e4b5c9/client/resources/return_2_bt_special_card.png"
     },
-    "pirates": null,
-    "spy": null
+    "pirates": {
+      "path": "/art/cards/pirates.webp",
+      "width": 374,
+      "height": 559,
+      "source": "tools/make_missing_cards.py (собственная вёрстка на фоне соседней карты)"
+    },
+    "spy": {
+      "path": "/art/cards/spy.webp",
+      "width": 359,
+      "height": 565,
+      "source": "tools/make_missing_cards.py (собственная вёрстка на фоне соседней карты)"
+    }
   },
   "objectives": {
     "crab": {
@@ -1116,16 +1126,6 @@
       "type": "token",
       "id": "scorpion-shinobi-3",
       "reason": "No matching scan in the reference source. Display a textual token rather than another strength."
-    },
-    {
-      "type": "territory-card",
-      "id": "pirates",
-      "reason": "No matching scan in the reference source. Use the implemented card text."
-    },
-    {
-      "type": "territory-card",
-      "id": "spy",
-      "reason": "No matching scan in the reference source. Use the implemented card text."
     }
   ],
   "files": [

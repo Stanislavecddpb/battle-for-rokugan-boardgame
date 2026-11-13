@@ -13,10 +13,14 @@ export interface FullState {
  secrets:Record<string,Secrets>;initiative:string[];initiativeShown:string;cards:CardSlot[];
  draft:Record<string,number>;passes:number;stopped:string[];firstUsed:boolean;scorpionUsed:boolean;
  pending:null|{kind:'dark'|'exchange'|'intel';player:string;ids:string[];count:number};
- log:string[];results:Result[];winners:string[];revision:number;errors:Record<string,string>;
+ log:string[];results:Result[];
+ /** Последний публично сброшенный картой/способностью жетон: клиент показывает его всем. */
+ flash?:{id:number;text:string;tokens:{owner:string;token:Token}[]};
+ /** Только в проекции игрока: сколько жетонов в резерве и в сбросе у каждого. */
+ reserve?:Record<string,number>;winners:string[];revision:number;errors:Record<string,string>;
  lobby?:{ready:Record<string,boolean>;names:Record<string,string>;clans?:Record<string,Clan>};
  manual?:boolean; cinematic?:boolean; undoState?:FullState; canUndo?:boolean;
- replay?:{frames?:ResolutionFrame[];current?:{kind:ResolutionFrame['kind'];targets:string[]};before:Record<string,Province>;cards:CardSlot[];steps:string[];cursor:number;after:'resolution'|'finished'};
+ replay?:{frames?:ResolutionFrame[];current?:{kind:ResolutionFrame['kind'];targets:string[]};before:Record<string,Province>;cards:CardSlot[];steps:string[];cursor:number;after:'resolution'|'finished';logFrom?:number};
 }
 export interface Action {
  type:string;clan?:string;objective?:string;province?:string;token?:string;order?:string;
@@ -30,16 +34,19 @@ export type Shuffle=<T>(items:T[])=>T[];
 const copy=<T>(v:T):T=>JSON.parse(JSON.stringify(v));
 function insist(condition:unknown,message:string):asserts condition {if(!condition)throw Error(message);}
 function next(g:FullState,id=g.active){return g.seats[(g.seats.indexOf(id)+1)%g.seats.length];}
-function note(g:FullState,message:string){g.log.push(message);if(g.log.length>160)g.log.shift();}
+function note(g:FullState,message:string){g.log.push(message);if(g.log.length>200)g.log.shift();}
+const KIND:Record<string,string>={army:'армия',navy:'флот',shinobi:'синоби',blessing:'благословение',raid:'набег',diplomacy:'дипломатия',bluff:'блеф'};
+export const tokenText=(t:Token)=>`${KIND[t.kind]??t.kind}${t.strength?' '+t.strength:''}`;
+function flash(g:FullState,text:string,tokens:{owner:string;token:Token}[]){g.flash={id:(g.flash?.id??0)+1,text,tokens:copy(tokens)};note(g,text);}
 function province(g:FullState,id?:string){insist(id && Object.hasOwn(g.round.provinces,id),'Выберите провинцию.');return g.round.provinces[id];}
 function selectable(g:FullState,id:string):Order{
  const o=g.round.orders.find(o=>o.id===id);
  insist(o&&!o.parent&&!g.round.orders.some(x=>x.parent===id),'Благословлённые приказы защищены.');return o;
 }
-function discardOrder(g:FullState,id:string){
+function discardOrder(g:FullState,id:string,by?:string){
  const o=selectable(g,id);g.round.orders=g.round.orders.filter(x=>x.id!==id);
  if(o.token.kind==='bluff')g.round.players[o.player].hand.push(o.token);else g.round.discarded.push(o.token);
- note(g,`Открыт и сброшен приказ ${id}: ${o.token.kind} ${o.token.strength}.`);
+ flash(g,`${by?by+': ':''}открыт и сброшен приказ ${g.round.players[o.player].name} в «${g.round.provinces[o.target].name}» — ${tokenText(o.token)}${o.token.kind==='bluff'?' (блеф вернулся за ширму)':''}.`,[{owner:o.player,token:o.token}]);
 }
 function sacrifice(g:FullState,id:string|undefined,player:string){
  const p=province(g,id);insist(p.owner===player&&!p.shadowlands,'Нужен свой контроль вне Земель Тени.');
@@ -94,10 +101,14 @@ export function availablePlacements(g:FullState,player:string):Placement[]{
  }return [...new Map(out.map(p=>[`${p.token}:${p.target}:${p.from??''}:${p.parent??''}`,p])).values()];
 }
 function finishRound(g:FullState){
- const before=copy(g.round.provinces),cards=copy(g.cards);
+ const before=copy(g.round.provinces),cards=copy(g.cards),logBefore=g.log.length;
  const frames:ResolutionFrame[]=[];g.round=resolve(g.round,frames);
  const owners=territoryOwners(g.round.provinces);
  for(const c of g.cards)if(!c.used){c.owner=owners[c.territory]??null;if(c.owner)c.revealed=true;}
+ // Один общий журнал: снятые приказы и итог каждого боя пишутся сюда же.
+ const name=(id:string|null)=>id===null?'никто':g.round.players[id].name;
+ for(const r of g.round.removed){const o=g.round.orders.find(o=>o.id===r.order);if(o)note(g,`Снят: ${name(o.player)}, ${tokenText(o.token)} в «${g.round.provinces[o.target].name}» — ${r.reason}`);}
+ for(const b of g.round.battles)note(g,`Бой за «${g.round.provinces[b.province].name}»: ${Object.entries(b.strengths).map(([id,v])=>`${name(id)} ${v}`).join(' / ')}, защита ${b.defense} → ${b.winner===null?'свободна':b.winner===b.previous?`${name(b.winner)} удерживает`:`${name(b.winner)} захватывает`}.`);
  note(g,`Раунд ${g.number}: разрешено боёв — ${g.round.battles.length}.`);
  g.active=g.first;
  if(g.number===5){
@@ -112,7 +123,7 @@ function finishRound(g:FullState){
  }else g.phase='resolution';
  if(g.cinematic){
   const steps=frames.map(f=>f.targets[0]);
-  g.replay={before,cards,frames,steps,cursor:-1,after:g.phase as 'resolution'|'finished'};g.phase='reveal';
+  g.replay={before,cards,frames,steps,cursor:-1,after:g.phase as 'resolution'|'finished',logFrom:Math.min(logBefore,g.log.length)};g.phase='reveal';
  }
 }
 function advancePlacement(g:FullState,advance=true){
@@ -184,7 +195,8 @@ function playCard(g:FullState,player:string,a:Action,shuffle:Shuffle){
    orders.forEach(id=>selectable(g,id));
    const hand=g.round.players[player].hand,at=hand.findIndex(t=>t.id===a.hand?.[0]);insist(at>=0,'Выберите жетон руки.');
    const [token]=hand.splice(at,1);if(token.kind==='bluff')hand.push(token);else g.round.discarded.push(token);
-   orders.forEach(id=>discardOrder(g,id));break;
+   flash(g,`Изгнание слабых: ${g.round.players[player].name} сбрасывает из руки ${tokenText(token)}.`,[{owner:player,token}]);
+   orders.forEach(id=>discardOrder(g,id,'Изгнание слабых'));break;
   }
   case 'animate':{
    const at=g.round.discarded.findIndex(t=>t.id===a.discard?.[0]&&t.owner===player);insist(at>=0,'Выберите жетон из своего сброса.');
@@ -271,7 +283,7 @@ export function act(input:FullState,player:string,a:Action,shuffle:Shuffle):{sta
    }else throw Error('Сначала соберите игроков и начните партию.');
   }else if(g.pending){
    insist(a.type==='pending','Сначала завершите действие карты.');
-   if(g.pending.kind==='dark'){insist(a.order&&g.pending.ids.includes(a.order),'Выберите один из просмотренных приказов.');discardOrder(g,a.order);g.pending=null;}
+   if(g.pending.kind==='dark'){insist(a.order&&g.pending.ids.includes(a.order),'Выберите один из просмотренных приказов.');discardOrder(g,a.order,'Тёмные любимцы');g.pending=null;}
    else if(g.pending.kind==='intel'){g.pending=null;advancePlacement(g);}
    else {exchangeHand(g,player,a.returns,g.pending.count,shuffle);g.pending=null;g.passes=0;g.active=next(g);}
   }else if(a.type==='clan'){
@@ -305,11 +317,11 @@ export function act(input:FullState,player:string,a:Action,shuffle:Shuffle):{sta
    else advancePlacement(g);
   }else if(['scout','shugenja','first'].includes(a.type)){
    insist(g.phase==='placement'&&a.order,'Карта доступна перед размещением.');
-   if(a.type==='scout'){const err=scout(g.round,player,a.order);insist(!err,err??'');}
-   else if(a.type==='shugenja'){const o=selectable(g,a.order),token=copy(o.token);const err=shugenja(g.round,player,a.order);insist(!err,err??'');note(g,`Сюгэндзя: ${token.kind} ${token.strength} сброшен.`);}
+   if(a.type==='scout'){const o=selectable(g,a.order);const err=scout(g.round,player,a.order);insist(!err,err??'');note(g,`${g.round.players[player].name}: разведчик смотрит приказ ${g.round.players[o.player].name} в «${g.round.provinces[o.target].name}».`);}
+   else if(a.type==='shugenja'){const o=selectable(g,a.order),token=copy(o.token);const err=shugenja(g.round,player,a.order);insist(!err,err??'');flash(g,`Сюгэндзя (${g.round.players[player].name}): открыт и сброшен приказ ${g.round.players[o.player].name} в «${g.round.provinces[o.target].name}» — ${tokenText(token)}${token.kind==='bluff'?' (блеф вернулся за ширму)':''}.`,[{owner:o.player,token}]);}
    else {
     insist(player===g.first&&!g.firstUsed&&g.seats.length>2,'Карта первого игрока недоступна.');const o=selectable(g,a.order);
-    g.round.players[player].knowledge[o.id]=copy(o.token);g.secrets[player].intel=[copy(o.token)];g.round.orders=g.round.orders.filter(x=>x.id!==o.id);
+    g.round.players[player].knowledge[o.id]=copy(o.token);g.secrets[player].intel=[copy(o.token)];g.round.orders=g.round.orders.filter(x=>x.id!==o.id);note(g,`${g.round.players[player].name}: карта первого игрока возвращает приказ ${g.round.players[o.player].name} из «${g.round.provinces[o.target].name}» в резерв.`);
     if(o.token.kind==='bluff')g.secrets[o.player].aside.push(o.token);else {g.secrets[o.player].pool.push(o.token);g.secrets[o.player].pool=shuffle(g.secrets[o.player].pool);}g.firstUsed=true;
    }
   }else if(a.type==='unicorn'){
@@ -332,17 +344,21 @@ export function act(input:FullState,player:string,a:Action,shuffle:Shuffle):{sta
 export function fullPlayerView(g:FullState,viewer?:string|null):FullState{
  const view=copy(g);delete view.undoState;view.canUndo=!!g.undoState;view.round=playerView(g.round,viewer) as unknown as RoundState;view.initiative=[];
  view.errors=viewer?{[viewer]:g.errors[viewer]??''}:{};
- view.secrets=Object.fromEntries(g.seats.map(id=>[id,{pool:[],objectives:id===viewer?copy(g.secrets[id].objectives):[],
+ view.reserve=Object.fromEntries(g.seats.map(id=>[id,g.secrets[id].pool.length+g.secrets[id].aside.length]));
+ view.secrets=Object.fromEntries(g.seats.map(id=>[id,{pool:id===viewer?copy(g.secrets[id].pool):[],objectives:id===viewer?copy(g.secrets[id].objectives):[],
   objective:id===viewer||g.phase==='finished'?g.secrets[id].objective:null,
   aside:id===viewer?copy(g.secrets[id].aside):[],intel:id===viewer?copy(g.secrets[id].intel):[]}]));
- view.cards=view.cards.map(c=>({...c,id:c.used||(c.owner!==null&&c.owner===viewer)?c.id:''}));
+ // Карты территорий лежат рубашкой вверх только под полем; взятая игроком карта видна всем.
+ view.cards=view.cards.map(c=>({...c,id:c.used||c.revealed||(c.owner!==null&&c.owner===viewer)?c.id:''}));
  if(g.phase==='reveal'&&g.replay){
   const done=new Set(g.replay.steps.slice(0,g.replay.cursor+1));
   for(const id of g.replay.steps)if(!done.has(id))view.round.provinces[id]=copy(g.replay.before[id]);
   view.round.battles=view.round.battles.filter(b=>done.has(b.province));
-  view.cards=copy(g.replay.cards).map(c=>({...c,id:c.used||(c.owner!==null&&c.owner===viewer)?c.id:''}));
+  view.cards=copy(g.replay.cards).map(c=>({...c,id:c.used||c.revealed||(c.owner!==null&&c.owner===viewer)?c.id:''}));
   if(g.replay.frames){const frame=g.replay.frames[g.replay.cursor];view.round.provinces=copy(frame?.provinces??g.replay.before);view.round.battles=copy(frame?.battles??[]);view.round.orders=view.round.orders.filter(o=>!frame?.removed.includes(o.id)||(frame.kind==='battle'&&frame.targets.includes(o.target)&&!g.round.removed.some(r=>r.order===o.id)));for(const o of view.round.orders){if(!['raid','diplomacy'].includes(o.token.kind)&&!(frame?.kind==='battle'&&frame.targets.includes(o.target)))(o as unknown as {token:Token|null}).token=null;}view.round.removed=view.round.removed.filter(r=>frame?.removed.includes(r.order));view.replay!.current=frame?{kind:frame.kind,targets:frame.targets}:undefined;delete view.replay!.frames;}
   view.replay!.cards=[];view.results=[];view.winners=[];
+  // Итоги боёв в журнале появляются, когда раскрытие закончено: не раскрываем их раньше анимации.
+  if(g.replay.logFrom!==undefined)view.log=view.log.slice(0,g.replay.logFrom);
  }
  if(view.pending&&view.pending.player!==viewer)view.pending={...view.pending,ids:[]};return view;
 }

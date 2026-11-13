@@ -163,10 +163,10 @@ describe('новый игровой стол',()=>{
 });
 
 describe('ручная коррекция и раскрытие занятых провинций',()=>{
- it('скрывает полученные карты соперника и зрителя, сохраняя карту владельцу',()=>{
+ it('взятая карта территории видна всем, а карта под полем — никому',()=>{
   const g=prepared();g.cards[0].owner='0';g.cards[0].revealed=true;
-  expect(fullPlayerView(g,'0').cards[0].id).toBe(g.cards[0].id);
-  for(const viewer of ['1',null,undefined])expect(fullPlayerView(g,viewer).cards[0].id).toBe('');
+  for(const viewer of ['0','1',null,undefined])expect(fullPlayerView(g,viewer).cards[0].id).toBe(g.cards[0].id);
+  for(const viewer of ['0','1',null])expect(fullPlayerView(g,viewer).cards[1].id).toBe('');
  });
  it('позволяет армию на морской границе для блефа, но запрещает нападение на себя',()=>{
   const g=prepared(),p=Object.values(g.round.provinces).find(p=>p.coastal)!;p.owner='1';
@@ -212,5 +212,33 @@ describe('ручная коррекция и раскрытие занятых �
   g=act(g,'0',{type:'manual-place',placement:{token:t.id,target:'7'}},unchanged).state;
   g=act(g,'0',{type:'manual-resolve'},unchanged).state;expect(g.replay!.steps).toEqual(['7']);
   g=move(g,{type:'reveal-next'});expect(g.phase).toBe('reveal');g=move(g,{type:'reveal-next'});expect(g.phase).toBe('resolution');
+ });
+});
+
+describe('единый журнал и показ сброшенных жетонов',()=>{
+ it('«Изгнание слабых» показывает всем сброшенные жетоны и пишет их по-русски',()=>{
+  let g=cardState('purge');
+  const a=order(g,'1','army','2',3),b=order(g,'1','army','2',1),h=token(g,'0','army',2);
+  g=move(g,{type:'card',card:'purge',orders:[a.id,b.id],hand:[h.id]});
+  expect(g.flash?.tokens.map(x=>x.token.strength)).toEqual([1]);
+  expect(g.flash?.text).toContain('армия 1');
+  expect(g.log.some(l=>l.includes('армия 3'))).toBe(true);
+  expect(g.log.some(l=>l.includes('сбрасывает из руки армия 2'))).toBe(true);
+ });
+ it('бои пишутся в общий журнал, но игрокам видны только после раскрытия',()=>{
+  let g=prepared();g.phase='placement';g.manual=true;g.cinematic=true;
+  order(g,'1','army','2',2);
+  const before=g.log.length;
+  const r=act(g,'0',{type:'manual-resolve'},unchanged);expect(r.error).toBeUndefined();g=r.state;
+  expect(g.log.some(l=>l.startsWith('Бой за'))).toBe(true);
+  expect(fullPlayerView(g,'0').log.length).toBe(before);
+  while(g.phase==='reveal')g=act(g,g.active,{type:'reveal-next'},unchanged).state;
+  expect(fullPlayerView(g,'0').log.some(l=>l.startsWith('Бой за'))).toBe(true);
+ });
+ it('игрок видит свой резерв, но не чужой; число жетонов в резерве видно всем',()=>{
+  const g=prepared(),v=fullPlayerView(g,'0');
+  expect(v.secrets['0'].pool.length).toBe(g.secrets['0'].pool.length);
+  expect(v.secrets['1'].pool).toEqual([]);
+  expect(v.reserve?.['1']).toBe(g.secrets['1'].pool.length);
  });
 });

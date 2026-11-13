@@ -34,3 +34,10 @@
 
 ## Territory card back
 `cards/territory-back.png`: original Dragon territory reverse, extracted as embedded image from page 3 (Components) of the official English rulebook, https://images-cdn.fantasyflightgames.com/filer_public/95/ef/95ef7efa-c0e1-4ae9-bd33-5439d236cefb/l5b01_rulebook_webcompressed.pdf . Used as a common reverse for hidden territory cards; no invented symbol.
+
+## Шрифт заголовков
+
+`public/fonts/story-brush-rus.otf` — Story Brush (RUS BY LYAJKA), кириллическая версия Story Brush.
+Им набраны заголовки русских правил Hobby World. Скачан с ffonts.net (лицензия по данным агрегаторов —
+«бесплатно для личного использования»; официальной страницы автора и текста лицензии не найдено).
+Перед публичным или коммерческим размещением лицензию нужно подтвердить или заменить шрифт.
