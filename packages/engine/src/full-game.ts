@@ -18,7 +18,9 @@ export interface FullState {
  flash?:{id:number;text:string;tokens:{owner:string;token:Token}[]};
  /** Только в проекции игрока: сколько жетонов в резерве и в сбросе у каждого. */
  reserve?:Record<string,number>;winners:string[];revision:number;errors:Record<string,string>;
- lobby?:{ready:Record<string,boolean>;names:Record<string,string>;clans?:Record<string,Clan>};
+ lobby?:{ready:Record<string,boolean>;names:Record<string,string>;clans?:Record<string,Clan>;
+  /** Места, чей клан выдан кнопкой «Случайно», а не выбран самим игроком: такой клан можно перебросить или забрать. */
+  random?:Record<string,boolean>};
  manual?:boolean; cinematic?:boolean; undoState?:FullState; canUndo?:boolean;
  replay?:{frames?:ResolutionFrame[];current?:{kind:ResolutionFrame['kind'];targets:string[]};before:Record<string,Province>;cards:CardSlot[];steps:string[];cursor:number;after:'resolution'|'finished';logFrom?:number};
 }
@@ -270,13 +272,22 @@ export function act(input:FullState,player:string,a:Action,shuffle:Shuffle):{sta
   }else if(g.phase==='lobby'){
    insist(g.lobby,'Лобби недоступно.');
    if(a.type==='lobby-clan'){
-    insist(a.clan&&Object.hasOwn(CLANS,a.clan),'Выберите клан.');g.lobby.clans??={};
-    insist(!Object.entries(g.lobby.clans).some(([id,clan])=>id!==player&&clan===a.clan),'Клан уже занят.');
-    g.lobby.clans[player]=a.clan as Clan;g.lobby.ready[player]=false;
+    insist(a.clan&&Object.hasOwn(CLANS,a.clan),'Выберите клан.');const clans=g.lobby.clans??={},random=g.lobby.random??={};
+    const holder=Object.keys(clans).find(id=>id!==player&&clans[id]===a.clan);
+    insist(!holder||random[holder],'Клан уже выбран другим игроком.');
+    if(holder){
+     // Клан выдан случайно — забираем его, а тому месту отдаём наш прежний клан или любой свободный.
+     const free=shuffle((Object.keys(CLANS) as Clan[]).filter(c=>c!==a.clan&&!Object.values(clans).includes(c)));
+     const mine=clans[player];clans[holder]=mine&&mine!==a.clan?mine:free.pop()!;g.lobby.ready[holder]=false;
+    }
+    clans[player]=a.clan as Clan;delete random[player];g.lobby.ready[player]=false;
    }else if(a.type==='random-clans'){
-    insist(player==='0','Случайную раздачу запускает первый игрок.');g.lobby.clans??={};
-    const available=shuffle((Object.keys(CLANS) as Clan[]).filter(c=>!Object.values(g.lobby!.clans!).includes(c)));
-    for(const id of g.seats)if(!g.lobby.clans[id]){g.lobby.clans[id]=available.pop()!;g.lobby.ready[id]=false;}
+    insist(player==='0','Случайную раздачу запускает первый игрок.');const clans=g.lobby.clans??={},random=g.lobby.random??={};
+    // Перебрасываются все кланы, кроме выбранных игроками вручную; повторное нажатие даёт новую раздачу.
+    const open=g.seats.filter(id=>!clans[id]||random[id]),before=open.map(id=>clans[id]).join();
+    const pool=(Object.keys(CLANS) as Clan[]).filter(c=>!g.seats.some(id=>!open.includes(id)&&clans[id]===c));
+    let deal:Clan[]=[];for(let i=0;i<8;i++){deal=shuffle(pool).slice(0,open.length);if(deal.join()!==before)break;}
+    open.forEach((id,i)=>{clans[id]=deal[i];random[id]=true;g.lobby!.ready[id]=false;});
    }else if(a.type==='ready'){
     insist(typeof a.ready==='boolean','Укажите готовность.');
     if(a.name!==undefined){insist(typeof a.name==='string'&&a.name.trim().length>0&&a.name.trim().length<=20,'Введите имя до 20 символов.');g.lobby.names[player]=a.name.trim();}

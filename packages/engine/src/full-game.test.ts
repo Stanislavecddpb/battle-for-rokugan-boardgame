@@ -256,3 +256,30 @@ describe('журнал записывает ходы',()=>{
   if(g.phase==='upkeep'){g=move(g,{type:'pass'});expect(g.log.at(-1)).toContain('пас');}
  });
 });
+
+describe('лобби: случайные кланы можно перебросить и поменять',()=>{
+ it('повторное «Случайно» даёт новую раздачу и не трогает выбранные вручную кланы',()=>{
+  let g=setupFull(5,unchanged,true);
+  g=act(g,'2',{type:'lobby-clan',clan:'crab'},unchanged).state;
+  g=act(g,'0',{type:'random-clans'},rng(1)).state;
+  const first={...g.lobby!.clans!};
+  g=act(g,'0',{type:'random-clans'},rng(2)).state;
+  expect(g.lobby!.clans!['2']).toBe('crab');
+  expect(Object.values(g.lobby!.clans!).join()).not.toBe(Object.values(first).join());
+  expect(new Set(Object.values(g.lobby!.clans!)).size).toBe(5);
+ });
+ it('случайно выданный клан можно забрать себе: соседу достаётся прежний клан',()=>{
+  let g=setupFull(3,unchanged,true);
+  g=act(g,'0',{type:'random-clans'},rng(3)).state;
+  const mine=g.lobby!.clans!['0'],theirs=g.lobby!.clans!['1'];
+  const r=act(g,'0',{type:'lobby-clan',clan:theirs},unchanged);
+  expect(r.error).toBeUndefined();g=r.state;
+  expect(g.lobby!.clans!['0']).toBe(theirs);expect(g.lobby!.clans!['1']).toBe(mine);
+  expect(g.lobby!.random?.['0']).toBeUndefined();
+  // Теперь клан выбран вручную — забрать его нельзя.
+  expect(act(g,'1',{type:'lobby-clan',clan:theirs},unchanged).error).toBeTruthy();
+  // Свой случайный клан игрок 1 может сменить на любой свободный.
+  const free=(Object.keys(CLANS) as (keyof typeof CLANS)[]).find(c=>!Object.values(g.lobby!.clans!).includes(c))!;
+  g=act(g,'1',{type:'lobby-clan',clan:free},unchanged).state;expect(g.lobby!.clans!['1']).toBe(free);
+ });
+});
