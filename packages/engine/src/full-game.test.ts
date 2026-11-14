@@ -242,3 +242,17 @@ describe('единый журнал и показ сброшенных жето�
   expect(v.reserve?.['1']).toBe(g.secrets['1'].pool.length);
  });
 });
+
+describe('журнал записывает ходы',()=>{
+ it('драфт, размещение без раскрытия жетона, пас и карта инициативы',()=>{
+  let g=prepared(3);
+  expect(g.log.some(l=>/занимает «/.test(l))).toBe(true);
+  const a=g.active,p=availablePlacements(g,a).find(p=>!p.parent&&!p.from)!;
+  g=move(g,{type:'place',placement:p});
+  const line=g.log.at(-1)!;expect(line).toContain('кладёт приказ в центр');
+  expect(line).not.toMatch(/армия|флот|синоби|блеф|набег|дипломатия/);
+  while(g.phase!=='resolution'){if(g.phase==='placement'){const q=availablePlacements(g,g.active)[0];g=move(g,{type:'place',placement:q});}else if(g.phase==='unicorn')g=move(g,{type:'unicorn',ids:[]});else break;}
+  if(g.phase==='resolution'){g=move(g,{type:'continue'});expect(g.log.some(l=>l.includes('Карта инициативы'))).toBe(true);}
+  if(g.phase==='upkeep'){g=move(g,{type:'pass'});expect(g.log.at(-1)).toContain('пас');}
+ });
+});

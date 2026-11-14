@@ -97,7 +97,8 @@ export function resolve(input: RoundState, frames?:ResolutionFrame[]): RoundStat
       else if(o.token.kind==='diplomacy')reason=s.provinces[o.target].owner!==o.player?'Дипломатия действует только в своей провинции. Здесь контроль другого клана или нейтральная земля.':s.provinces[o.target].special?.kind==='battlefield'?'Поле битвы запрещает дипломатию.':s.players[o.player].ronin?'Ронин не может применять дипломатию.':'Дипломатия должна лежать в центре своей провинции.';
       else if(o.token.kind==='army'&&o.from==='sea')reason='Армия не атакует с моря: этот приказ считается блефом.';
       else if(blessings.length&&!military(o.token))reason='Благословение допускается только на армии, флоте или синоби.';
-      for(const item of [o,...blessings])s.removed.push({order:item.id,reason});
+      s.removed.push({order:o.id,reason});
+      for(const item of blessings)s.removed.push({order:item.id,reason:'Благословение снято вместе с приказом, на котором лежало.'});
     } else active.push(o,...blessings);
   }
   const hidden=new Set<string>();

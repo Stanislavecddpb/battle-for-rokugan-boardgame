@@ -101,7 +101,7 @@ export function FullTable({session,exit,members,onLeave}:{session:Session;exit:(
    {picked&&<p className="province-detail"><b>{picked.name}</b> · {picked.owner===null?'нет владельца':`контроль: ${s.players[picked.owner].name}`} · {picked.coastal||picked.special?.kind==='harbor'?'прибрежная':'внутренняя'} · соседи: {picked.neighbors.map(id=>s.provinces[id].name).join(', ')}</p>}
    </section>
    <LogPanel log={g.log}/>
-   <footer className="rk-tools">{session.matchID&&<span>Комната <b>{session.matchID}</b></span>}<button onClick={()=>setShowHelp(true)}>Правила</button>{!session.watch&&!over&&<button aria-pressed={!!g.manual} onClick={()=>send({type:'mode',enabled:!g.manual})} title="Свободное редактирование поля в обход правил">{g.manual?'К правилам':'Ручной режим'}</button>}<button className="exit-game" onClick={exit}>Выйти</button></footer>
+   <div className="rk-tools" role="toolbar" aria-label="Партия">{session.matchID&&<span>Комната <b>{session.matchID}</b></span>}<button onClick={()=>setShowHelp(true)}>Правила</button>{!session.watch&&!over&&<button aria-pressed={!!g.manual} onClick={()=>send({type:'mode',enabled:!g.manual})} title="Свободное редактирование поля в обход правил">{g.manual?'К правилам':'Ручной режим'}</button>}<button className="exit-game" onClick={exit}>Выйти</button></div>
   </aside>
  </main></MapPick.Provider></OrderPick.Provider>;
 }

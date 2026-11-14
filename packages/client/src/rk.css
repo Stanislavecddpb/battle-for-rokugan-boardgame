@@ -2,7 +2,8 @@
    Слева — моя ширма, в центре — поле (колесо — зум, перетаскивание — сдвиг), справа — игроки, действия, журнал. */
 html.rk-fullscreen,html.rk-fullscreen body{height:100%;overflow:hidden}
 html.rk-fullscreen .room-bar{position:fixed;top:0;left:0;right:0;z-index:30;padding:4px 14px;min-height:0}
-html.rk-fullscreen:has(.room-bar) .rk{top:38px}
+/* В embed-режиме платформы полоса комнаты скрыта — стол прилегает к верхнему краю. */
+html.rk-fullscreen:not(.embed):has(.room-bar) .rk{top:38px}
 .full-table.rk{position:fixed;inset:0;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:clamp(250px,21vw,430px) minmax(0,1fr) clamp(300px,24vw,440px);grid-template-rows:minmax(0,1fr);gap:0;align-items:stretch;background:#0d161b;color:#e8dfcb;overflow:hidden;font-size:14px}
 .rk h3{font:600 12px/1.2 Manrope,system-ui,sans-serif;letter-spacing:1.4px;text-transform:uppercase;color:#c9ad73;margin:10px 0 6px}
 .rk .muted{color:#9a9a8c;font-size:12px}
@@ -101,7 +102,7 @@ html.rk-fullscreen:has(.room-bar) .rk{top:38px}
 .unique-token .token-art{width:46px;height:46px}.unique-token small{display:block;font-size:11px;color:#6e6452}.unique-token b{font-size:14px}
 .tip-cards{margin-top:8px}.tip-cards small{font-size:11px;color:#6e6452}
 .tip-cards>div{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}.tip-cards img{height:78px;border-radius:4px;box-shadow:0 2px 5px #0004}
-.rk .command{flex:1 1 auto;min-height:120px;overflow-y:auto;margin:0 8px;padding:12px 14px;position:static;max-height:none;top:auto;border-radius:7px;scrollbar-width:thin}
+.rk .command{align-self:stretch;flex:1 1 auto;min-height:120px;overflow-y:auto;margin:0 8px;padding:12px 14px;position:static;max-height:none;top:auto;border-radius:7px;scrollbar-width:thin}
 .rk .command>h2{font-size:18px;margin:0 0 6px}
 .rk .command .hand{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
 .rk .command .hand button{min-height:74px;padding:6px 3px}
